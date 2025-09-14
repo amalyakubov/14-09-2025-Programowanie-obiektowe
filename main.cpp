@@ -89,7 +89,7 @@ class Loadable {
 };
 
 class Serviceable {
-  virtual void service(Mechanic &m) = 0;
+  virtual void service(std::shared_ptr<Mechanic> m) = 0;
 };
 
 class Vehicle : Loadable, Serviceable {
@@ -104,8 +104,8 @@ public:
     std::cout << std::format("Pojazd: {} ({} miejsca/ladownosci)", this->model,
                              this->capacity);
   }
-  void service(Mechanic &m) override {
-    std::cout << std::format("{} serwisuje {}\n", m.getName(), this->model);
+  void service(std::shared_ptr<Mechanic> m) override {
+    std::cout << std::format("{} serwisuje {}\n", m->getName(), this->model);
   }
 
   std::string getModel() { return this->model; }
@@ -171,11 +171,11 @@ private:
   std::vector<std::shared_ptr<Vehicle>> listaPojazdow;
 
 public:
-  void addEmployee(std::unique_ptr<Employee> e) {
+  void addEmployee(std::shared_ptr<Employee> e) {
     this->listaPracownikow.push_back(std::move(e));
   }
 
-  void addVehicle(std::unique_ptr<Vehicle> v) {
+  void addVehicle(std::shared_ptr<Vehicle> v) {
     this->listaPojazdow.push_back(std::move(v));
   }
 
@@ -208,8 +208,8 @@ private:
   std::string description;
   double weight;
   Address destination;
-  std::unique_ptr<Vehicle> pojazd;
-  Driver kierowca;
+  std::shared_ptr<Vehicle> pojazd;
+  std::shared_ptr<Driver> kierowca;
 
 public:
   std::string toString() const {
@@ -217,15 +217,15 @@ public:
                        this->description, this->weight,
                        this->destination.toString());
   }
-  void assignVehicle(std::unique_ptr<Vehicle> v, Driver d) {
+  void assignVehicle(std::shared_ptr<Vehicle> v, std::shared_ptr<Driver> d) {
     this->pojazd = std::move(v);
-    this->kierowca = d;
+    this->kierowca = std::move(d);
   }
 
-  Cargo(std::string description, double weight, Address destination,
-        Driver kierowca)
-      : description(description), weight(weight), destination(destination),
-        kierowca(kierowca) {};
+  Cargo(std::string description, double weight, std::string city,
+        std::string street)
+      : description(description), weight(weight), destination(city, street),
+        kierowca(nullptr) {};
 };
 
 class LogisticsComapny {
@@ -253,36 +253,35 @@ public:
 };
 
 int main() {
-  auto Andrzej = std::make_unique<Driver>("Andrzej", "Warszawa",
+  auto Andrzej = std::make_shared<Driver>("Andrzej", "Warszawa",
                                           "Aleja Rzeczypospolitej 3A", "B");
-  auto Mikolaj = std::make_unique<Mechanic>("Mikołaj", "Warszawa",
+  auto Mikolaj = std::make_shared<Mechanic>("Mikołaj", "Warszawa",
                                             "Typowe Warszawaskie Za#upie", 12);
-  auto Jacek = std::make_unique<Manager>(
+  auto Jacek = std::make_shared<Manager>(
       "Jacek", "Warszawa", "Wilanów (no a gdzie indziej)", 90000.0);
 
-  auto id3 = std::make_unique<Car>("Volkswagen Id3", 4);
-  auto solaris = std::make_unique<Bus>("Solaris", 40);
+  auto id3 = std::make_shared<Car>("Volkswagen Id3", 4);
+  auto solaris = std::make_shared<Bus>("Solaris", 40);
 
   Branch warszawa("Warszawa", "Warszawa", "ul. Długa");
 
   // if addEmployee takes ownership:
-  warszawa.addEmployee(std::move(Andrzej));
-  warszawa.addEmployee(std::move(Mikolaj));
-  warszawa.addEmployee(std::move(Jacek));
+  warszawa.addEmployee(Andrzej);
+  warszawa.addEmployee(Mikolaj);
+  warszawa.addEmployee(Jacek);
 
-  warszawa.addVehicle(std::move(id3));
-  warszawa.addVehicle(std::move(solaris));
+  warszawa.addVehicle(id3);
+  warszawa.addVehicle(solaris);
 
-  auto AndrzejZKrakowa = std::make_unique<Driver>(
+  auto AndrzejZKrakowa = std::make_shared<Driver>(
       "Andrzej Z Krakowa", "Kraków", "Aleja Rzeczypospolitej 3A", "B");
-  auto MikolajZKrakowa = std::make_unique<Mechanic>(
+  auto MikolajZKrakowa = std::make_shared<Mechanic>(
       "Mikołaj z Krakowa", "Kraków", "Typowe Krakowskie Za#upie", 12);
-  Mechanic &mikolajRef = *MikolajZKrakowa;
-  auto JacekZKrakowa = std::make_unique<Manager>(
+  auto JacekZKrakowa = std::make_shared<Manager>(
       "Jacek", "Kraków", "nwm jakieś bogate osiedle", 100000.0);
 
-  auto id4 = std::make_unique<Car>("Volkswagen Id4", 4);
-  auto solaris2 = std::make_unique<Bus>("Solaris model nwm", 40);
+  auto id4 = std::make_shared<Car>("Volkswagen Id4", 4);
+  auto solaris2 = std::make_shared<Bus>("Solaris model nwm", 40);
   Bus &solaris2ref = *solaris2;
 
   solaris2ref.loadCargo("Pszenica");
@@ -290,12 +289,12 @@ int main() {
   Branch krakow("Kraków", "Kraków", "ul. Wawelska");
 
   // if addEmployee takes ownership:
-  krakow.addEmployee(std::move(AndrzejZKrakowa));
-  krakow.addEmployee(std::move(MikolajZKrakowa));
-  krakow.addEmployee(std::move(JacekZKrakowa));
+  krakow.addEmployee(AndrzejZKrakowa);
+  krakow.addEmployee(MikolajZKrakowa);
+  krakow.addEmployee(JacekZKrakowa);
 
-  krakow.addVehicle(std::move(id4));
-  krakow.addVehicle(std::move(solaris2));
+  krakow.addVehicle(id4);
+  krakow.addVehicle(solaris2);
 
   LogisticsComapny Transmax("Transmax");
   Transmax.addBranch(krakow);
@@ -303,10 +302,13 @@ int main() {
 
   Transmax.showCompanyInfo();
 
+  auto cargo1 = Cargo("Pszenica I guess", 90.0, "Olsztyn", "Spacerowa");
+  cargo1.assignVehicle(solaris2, AndrzejZKrakowa);
+
   for (auto branch : Transmax.getBranhches()) {
     for (auto &v : branch.getVehicles()) {
       v->drive();
-      v->service(mikolajRef);
+      v->service(Mikolaj);
     }
   }
 }
