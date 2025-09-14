@@ -89,7 +89,7 @@ class Loadable {
 };
 
 class Serviceable {
-  virtual void service(Mechanic m) = 0;
+  virtual void service(Mechanic &m) = 0;
 };
 
 class Vehicle : Loadable, Serviceable {
@@ -104,8 +104,8 @@ public:
     std::cout << std::format("Pojazd: {} ({} miejsca/ladownosci)", this->model,
                              this->capacity);
   }
-  void service(Mechanic m) override {
-    std::cout << std::format("{} serwisuje {}", m.getName(), this->model);
+  void service(Mechanic &m) override {
+    std::cout << std::format("{} serwisuje {}\n", m.getName(), this->model);
   }
 
   std::string getModel() { return this->model; }
@@ -141,7 +141,8 @@ class Truck : public Vehicle {
   }
 
   void loadCargo(std::string cargo) override {
-    std::cout << std::format("{}  załadaowano w ciężarówkę z`
+    std::cout << std::format("{}  załadaowano w ciężarówkę {}", cargo,
+                             this->getModel());
   }
 };
 
@@ -155,7 +156,7 @@ public:
   }
 
   void loadCargo(std::string cargo) override {
-    std::cout << std::format("{} załadowano w ciężarówkę {}", cargo,
+    std::cout << std::format("{} załadowano w ciężarówkę {}\n", cargo,
                              this->getModel());
   }
 
@@ -194,7 +195,7 @@ public:
   std::vector<Vehicle *> getVehicles() {
     std::vector<Vehicle *> vehicles;
     for (auto &v : listaPojazdow)
-      vehicles.push_back(v.get()); // just raw pointers
+      vehicles.push_back(v.get());
     return vehicles;
   }
 
@@ -236,7 +237,6 @@ private:
 public:
   void addBranch(Branch b) { this->branchList.push_back(b); }
   void addCargo(Cargo &c) { this->cargoList.push_back(std::move(c)); }
-  // TODO : Implement this
   void showCompanyInfo() const {
     std::cout << companyName << "\n";
     for (auto branch : branchList) {
@@ -277,11 +277,15 @@ int main() {
       "Andrzej Z Krakowa", "Kraków", "Aleja Rzeczypospolitej 3A", "B");
   auto MikolajZKrakowa = std::make_unique<Mechanic>(
       "Mikołaj z Krakowa", "Kraków", "Typowe Krakowskie Za#upie", 12);
+  Mechanic &mikolajRef = *MikolajZKrakowa;
   auto JacekZKrakowa = std::make_unique<Manager>(
       "Jacek", "Kraków", "nwm jakieś bogate osiedle", 100000.0);
 
   auto id4 = std::make_unique<Car>("Volkswagen Id4", 4);
   auto solaris2 = std::make_unique<Bus>("Solaris model nwm", 40);
+  Bus &solaris2ref = *solaris2;
+
+  solaris2ref.loadCargo("Pszenica");
 
   Branch krakow("Kraków", "Kraków", "ul. Wawelska");
 
@@ -302,6 +306,9 @@ int main() {
   for (auto branch : Transmax.getBranhches()) {
     for (auto &v : branch.getVehicles()) {
       v->drive();
+      v->service(mikolajRef);
     }
   }
 }
+
+// wiem że ten kod jest okropny ale to wina c++ a nie moja.
